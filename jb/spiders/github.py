@@ -3,7 +3,8 @@ import scrapy
 from scrapy.http import Request
 import web
 import time
-
+import json
+import requests
 db = web.database(dbn='mysql', host='127.0.0.1', db='weibo-v2', user='root', pw='root')
 
 # 允许的站点域
@@ -21,12 +22,13 @@ list_page = 1
 crawl_url = "http://www.jb51.net/article/%d.htm"
 
 
+
 class JB51Spider(scrapy.Spider):
     name = "jb51"
     start_urls = [
         "http://www.jb51.net/list/index_1.htm"
     ]
-
+    num = 1
     cate_list = []
 
     def parse(self, response):
@@ -61,14 +63,24 @@ class JB51Spider(scrapy.Spider):
         title = response.selector.xpath('//div[@class="title"]/h1/text()').extract()[0]
         content = response.selector.xpath('//div[@id="content"]').extract()[0]
         tags = ','.join(response.selector.xpath('//div[@class="tags mt10"]/a/text()').extract())
-        
-        results = db.query('select count(0) as total from articles where origin=$origin', vars = { 'origin': response.url })
-        if results[0].total <= 0:
-            db.insert('articles',
-                      title=title,
-                      origin=response.url,
-                      content=content,
-                      add_date=int(time.time()),
-                      hits=0,
-                      tags=tags
-            )
+
+        data_json = json.dumps({'title': title, 'origin': response.url, 'content': content, 'add_date': 'dd', 'hits': 0, 'tags': tags})
+
+        es_url = 'http://42.159.194.152:9201/jb51/articlestest/%d' % self.num
+
+        ret = requests.put(es_url, data=data_json)
+
+        self.num = self.num + 1
+
+        print ret.content
+
+        # results = db.query('select count(0) as total from articles where origin=$origin', vars = { 'origin': response.url })
+        # if results[0].total <= 0:
+        #     db.insert('articles',
+        #               title=title,
+        #               origin=response.url,
+        #               content=content,
+        #               add_date=int(time.time()),
+        #               hits=0,
+        #               tags=tags
+        #     )
